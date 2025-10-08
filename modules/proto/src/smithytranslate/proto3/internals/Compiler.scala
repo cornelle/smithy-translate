@@ -126,14 +126,17 @@ private[proto3] class Compiler(model: Model, allShapes: Boolean, protovalidate: 
               }
               .toList
           val currentFqn = Namespacing.namespaceToFqn(ns)
-          val imports = mappings
+          val typeImports = mappings
             .map(resolveImports)
             .flatMap(_.toList)
             .filter(_ != currentFqn)
             .map { case fqn =>
               Statement.ImportStatement(filePath(fqn).mkString("/"))
             }
-            .distinct
+          val protovalidateImport =
+            if (protovalidate) List(Statement.ImportStatement("buf/validate/validate.proto"))
+            else Nil
+          val imports = (typeImports ++ protovalidateImport).distinct
           val unit = CompilationUnit(Some(ns), imports ++ mappings, options)
           List(OutputFile(filePath(currentFqn), unit))
         } else Nil

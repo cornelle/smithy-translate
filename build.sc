@@ -141,7 +141,7 @@ object cli
     val inputArgs = inputs.flatMap { p =>
       "--input" :: p.toString() :: Nil
     }.toList
-    val cmd = List("smithy-to-proto")
+    val cmd = List("smithy-to-proto", "--protovalidate")
     val args = cmd ++ inputArgs ++ List(output.toString)
 
     mill.util.Jvm.callProcess(

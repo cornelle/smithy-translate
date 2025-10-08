@@ -2026,6 +2026,8 @@ class CompilerRendererSuite extends FunSuite {
                       |
                       |package com.example;
                       |
+                      |import "buf/validate/validate.proto";
+                      |
                       |message S {
                       |  string s = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 2, (buf.validate.field).string.max_len = 5, (buf.validate.field).string.pattern = "a+b"];
                       |  int32 i = 2 [(buf.validate.field).int32.gte = 1, (buf.validate.field).int32.lte = 10];

@@ -8,6 +8,9 @@ use alloy.proto#protoEnabled
 use alloy.proto#protoReservedFields
 use alloy.proto#protoNumType
 use demo.common#Language
+use demo.common#Name
+use demo.common#Version
+use demo.common#ConstrainedLong
 
 @protoEnabled
 service Hello {
@@ -24,11 +27,16 @@ operation Greet {
   output: HelloResponse
 }
 
+list SuggestionList 
+{
+  member: String
+}
+
 @protoReservedFields([{number: 3}])
 structure HelloRequest {
     @protoIndex(1)
     @required
-    name: String,
+    name: Name,
 
     @protoIndex(2)
     lang: Language,
@@ -39,6 +47,9 @@ structure HelloRequest {
 
     @protoIndex(5)
     int: Integer
+
+    @protoIndex(6)
+    suggestionList: SuggestionList
 }
 
 structure HelloResponse {
@@ -59,6 +70,9 @@ structure HelloResponse {
     @protoIndex(6)
     @required
     anotherLong: Long,
+
+    @protoIndex(7)
+    constrainedLong: ConstrainedLong
 }
 
 structure UseApiStruct {
@@ -70,7 +84,7 @@ structure UseApiStruct {
 @protoInlinedOneOf
 union ApiUnion {
   @protoIndex(4)
-  version: String,
+  version: Version,
   @protoIndex(5)
   id: Integer
 }

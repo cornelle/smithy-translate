@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package demo.common;
 
+import "buf/validate/validate.proto";
+
 enum Language {
   FRENCH = 0;
   ENGLISH = 1;
