@@ -1953,19 +1953,22 @@ class CompilerRendererSuite extends FunSuite {
   private def convertCheck(
       source: String,
       expected: Map[String, String],
-      allShapes: Boolean = true
+      allShapes: Boolean = true,
+      protovalidate: Boolean = false
   )(implicit loc: Location): Unit = {
     convertChecks(
       Map("inlined-in-test.smithy" -> source),
       expected,
-      allShapes
+      allShapes,
+      protovalidate
     )
   }
 
   private def convertChecks(
       sources: Map[String, String],
       expected: Map[String, String],
-      allShapes: Boolean = true
+      allShapes: Boolean = true,
+      protovalidate: Boolean = false
   )(implicit loc: Location): Unit = {
     def render(srcs: Map[String, String]): List[(String, String)] = {
       val m = {
@@ -1981,7 +1984,7 @@ class CompilerRendererSuite extends FunSuite {
           .assemble()
           .unwrap()
       }
-      val c = new Compiler(m, allShapes = allShapes)
+      val c = new Compiler(m, allShapes = allShapes, protovalidate = protovalidate)
       val res = c.compile()
       if (res.isEmpty) { fail("Compiler didn't produce any output") }
       res.map { of =>
@@ -2000,7 +2003,36 @@ class CompilerRendererSuite extends FunSuite {
     } {
       assertEquals(renderedFiles(file).trim(), content.trim())
     }
-    ProtoValidator.run(renderedFiles.toSeq: _*)
+    // Skip protoc validation when protovalidate options are present,
+    // since buf.validate descriptors are not bundled with tests.
+    if (!protovalidate) ProtoValidator.run(renderedFiles.toSeq*)
+  }
+
+  test("protovalidate emits buf.validate options for strings and numbers") {
+    val source = """|namespace com.example
+                    |
+                    |structure S {
+                    |  @required
+                    |  @length(min: 2, max: 5)
+                    |  @pattern("a+b")
+                    |  s: String
+                    |
+                    |  @range(min: 1, max: 10)
+                    |  i: Integer
+                    |}
+                    |""".stripMargin
+
+    val expected = """|syntax = "proto3";
+                      |
+                      |package com.example;
+                      |
+                      |message S {
+                      |  string s = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 2, (buf.validate.field).string.max_len = 5, (buf.validate.field).string.pattern = "a+b"];
+                      |  int32 i = 2 [(buf.validate.field).int32.gte = 1, (buf.validate.field).int32.lte = 10];
+                      |}
+                      |""".stripMargin
+
+    convertCheck(source, Map("com/example/example.proto" -> expected), protovalidate = true)
   }
 
 }

@@ -24,7 +24,8 @@ case class ProtoOpts(
     inputFiles: NonEmptyList[os.Path],
     outputPath: os.Path,
     deps: List[String],
-    repositories: List[String]
+    repositories: List[String],
+    protovalidate: Boolean
 )
 
 object ProtoOpts {
@@ -45,7 +46,13 @@ object ProtoOpts {
       .orEmpty
 
   private val opts =
-    (CommonOpts.sources, CommonOpts.outputDirectory, deps, repositories)
+    (
+      CommonOpts.sources,
+      CommonOpts.outputDirectory,
+      deps,
+      repositories,
+      Opts.flag(long = "protovalidate", help = "Emit buf.validate field options for Smithy validation traits.").orFalse
+    )
       .mapN(ProtoOpts.apply)
 
   private val smithyToProtoCmd = Command(

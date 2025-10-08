@@ -126,8 +126,9 @@ private[proto3] object Renderer {
 
   def renderField(field: Field): Text = {
     val ty = renderType(field.ty)
-    val deprecated = if (field.deprecated) " [deprecated = true]" else ""
-    statement(s"$ty ${field.name} = ${field.number}$deprecated")
+    val allOpts = (if (field.deprecated) List("deprecated = true") else Nil) ++ field.options
+    val optsStr = if (allOpts.nonEmpty) allOpts.mkString(" [", ", ", "]") else ""
+    statement(s"$ty ${field.name} = ${field.number}$optsStr")
   }
 
   def renderService(service: Service): Text =

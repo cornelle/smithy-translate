@@ -61,7 +61,8 @@ private[internals] object ProtoIR {
       deprecated: Boolean,
       ty: Type,
       name: String,
-      number: Int
+      number: Int,
+      options: List[String]
   )
 
   sealed trait Reserved

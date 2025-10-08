@@ -35,7 +35,7 @@ import alloy.proto.ProtoTimestampFormatTrait
 import alloy.proto.ProtoTimestampFormatTrait.TimestampFormat
 import smithytranslate.proto3.internals.ProtoIR.Type.AlloyTypes
 
-private[proto3] class Compiler(model: Model, allShapes: Boolean) {
+private[proto3] class Compiler(model: Model, allShapes: Boolean, protovalidate: Boolean) {
   import Compiler.*
 
   // Reference:
@@ -218,7 +218,7 @@ private[proto3] class Compiler(model: Model, allShapes: Boolean) {
       val name = shape.getId.getName
       val isDeprecated = shape.hasTrait(classOf[DeprecatedTrait])
       val field =
-        Field(deprecated = isDeprecated, ty, "value", 1)
+        Field(deprecated = isDeprecated, ty, "value", 1, Nil)
       val message =
         Message(name, List(MessageElement.FieldElement(field)), Nil)
       List(TopLevelDef.MessageDef(message))
@@ -429,12 +429,16 @@ private[proto3] class Compiler(model: Model, allShapes: Boolean) {
                         )
                         .get
                     }
+                  val fieldOptions: List[String] =
+                    if (protovalidate) buildFieldValidationOptions(m, targetShape)
+                    else Nil
                   val field = MessageElement.FieldElement(
                     Field(
                       deprecated = isDeprecated,
                       fieldType,
                       fieldName,
-                      fieldIndex
+                      fieldIndex,
+                      fieldOptions
                     )
                   )
                   (fields :+ field, fieldCount + 1)
@@ -481,16 +485,81 @@ private[proto3] class Compiler(model: Model, allShapes: Boolean) {
               )
               .get
           val isDeprecated = m.hasTrait(classOf[DeprecatedTrait])
+          val fieldOptions: List[String] =
+            if (protovalidate) buildFieldValidationOptions(m, targetShape)
+            else Nil
           Field(
             deprecated = isDeprecated,
             fieldType,
             fieldName,
-            fieldIndex
+            fieldIndex,
+            fieldOptions
           )
       }
       Oneof(name, fields)
     }
   }
+
+  private def buildFieldValidationOptions(member: MemberShape, targetShape: Shape): List[String] = {
+    import software.amazon.smithy.model.traits._
+    val buf = scala.collection.mutable.ListBuffer.empty[String]
+
+    // required: presence or non-zero
+    if (member.hasTrait(classOf[RequiredTrait])) {
+      buf += "(buf.validate.field).required = true"
+    }
+
+    // strings: length, pattern
+    targetShape.asStringShape().toScala.foreach { _ =>
+      member.getTrait(classOf[LengthTrait]).toScala.foreach { t =>
+        t.getMin().toScala.foreach(min => buf += s"(buf.validate.field).string.min_len = ${min.longValue()}" )
+        t.getMax().toScala.foreach(max => buf += s"(buf.validate.field).string.max_len = ${max.longValue()}" )
+      }
+      member.getTrait(classOf[PatternTrait]).toScala.foreach { t =>
+        buf += s"(buf.validate.field).string.pattern = \"${escapeProtoString(t.getValue())}\""
+      }
+    }
+
+    // numbers: range
+    if (targetShape.isByteShape || targetShape.isShortShape || targetShape.isIntegerShape || targetShape.isLongShape || targetShape.isFloatShape || targetShape.isDoubleShape) {
+      member.getTrait(classOf[RangeTrait]).toScala.foreach { t =>
+        t.getMin().toScala.foreach(min => buf += s"(buf.validate.field).${numericKind(targetShape)}.gte = ${min.toString}")
+        t.getMax().toScala.foreach(max => buf += s"(buf.validate.field).${numericKind(targetShape)}.lte = ${max.toString}")
+      }
+    }
+
+    // lists: min/max/unique
+    targetShape.asListShape().toScala.foreach { _ =>
+      member.getTrait(classOf[LengthTrait]).toScala.foreach { t =>
+        t.getMin().toScala.foreach(min => buf += s"(buf.validate.field).repeated.min_items = ${min.longValue()}" )
+        t.getMax().toScala.foreach(max => buf += s"(buf.validate.field).repeated.max_items = ${max.longValue()}" )
+      }
+      member.getTrait(classOf[UniqueItemsTrait]).toScala.foreach { _ =>
+        buf += s"(buf.validate.field).repeated.unique = true"
+      }
+    }
+
+    // maps: min/max pairs
+    targetShape.asMapShape().toScala.foreach { _ =>
+      member.getTrait(classOf[LengthTrait]).toScala.foreach { t =>
+        t.getMin().toScala.foreach(min => buf += s"(buf.validate.field).map.min_pairs = ${min.longValue()}" )
+        t.getMax().toScala.foreach(max => buf += s"(buf.validate.field).map.max_pairs = ${max.longValue()}" )
+      }
+    }
+
+    buf.toList
+  }
+
+  private def numericKind(target: Shape): String = {
+    if (target.isByteShape || target.isShortShape || target.isIntegerShape) "int32"
+    else if (target.isLongShape) "int64"
+    else if (target.isFloatShape) "float"
+    else if (target.isDoubleShape) "double"
+    else "int32"
+  }
+
+  private def escapeProtoString(s: String): String =
+    s.replace("\\", "\\\\").replace("\"", "\\\"")
 
   private def getReservedValues(shape: Shape): List[Reserved] =
     shape

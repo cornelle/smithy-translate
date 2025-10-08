@@ -31,7 +31,8 @@ object Proto {
       inputFiles: List[os.Path],
       outputPath: os.Path,
       deps: List[String],
-      repositories: List[String]
+      repositories: List[String],
+      protovalidate: Boolean
   ): Unit = {
     val transformers = TransformerLookup.getAll()
     val currentClassLoader = this.getClass().getClassLoader()
@@ -58,7 +59,7 @@ object Proto {
       transfomer.transform(TransformContext.builder().model(m).build())
     )
 
-    run(model, outputPath)
+    run(model, outputPath, protovalidate)
   }
 
   /** Transforms the given model, then run the conversion.
@@ -71,11 +72,11 @@ object Proto {
     val model = transformers.foldLeft(model0)((m, transfomer) =>
       transfomer.transform(TransformContext.builder().model(m).build())
     )
-    run(model, outputPath)
+    run(model, outputPath, false)
   }
 
-  private def run(model: Model, outputPath: os.Path): Unit = {
-    val out = SmithyToProtoCompiler.compile(model)
+  private def run(model: Model, outputPath: os.Path, protovalidate: Boolean): Unit = {
+    val out = SmithyToProtoCompiler.withProtovalidate(protovalidate).compile(model)
 
     os.walk(outputPath)
       .filter(p => os.isFile(p) && p.ext == "proto")

@@ -18,10 +18,11 @@ package smithytranslate.proto3
 import software.amazon.smithy.model.Model
 
 object SmithyToProtoCompiler
-    extends SmithyToProtoCompilerInterface(allShapes = false)
+    extends SmithyToProtoCompilerInterface(allShapes = false, protovalidate = false)
 
 class SmithyToProtoCompilerInterface private[proto3] (
-    allShapes: Boolean
+    allShapes: Boolean,
+    protovalidate: Boolean
 ) {
 
   /** Transforms a smithy model into a list of protobuf files.
@@ -30,7 +31,7 @@ class SmithyToProtoCompilerInterface private[proto3] (
       smithyModel: Model
   ): List[RenderedProtoFile] = {
     val compiler =
-      new internals.Compiler(smithyModel, allShapes = allShapes)
+      new internals.Compiler(smithyModel, allShapes = allShapes, protovalidate = protovalidate)
     compiler
       .compile()
       .map { compileOutput =>
@@ -43,5 +44,8 @@ class SmithyToProtoCompilerInterface private[proto3] (
   def withConvertAllShapes(
       newAllShapes: Boolean
   ): SmithyToProtoCompilerInterface =
-    new SmithyToProtoCompilerInterface(newAllShapes)
+    new SmithyToProtoCompilerInterface(newAllShapes, protovalidate)
+
+  def withProtovalidate(newProtovalidate: Boolean): SmithyToProtoCompilerInterface =
+    new SmithyToProtoCompilerInterface(allShapes, newProtovalidate)
 }

@@ -79,7 +79,8 @@ object Main
               opts.inputFiles.toList,
               opts.outputPath,
               opts.deps,
-              opts.repositories
+              opts.repositories,
+              opts.protovalidate
             )
 
           case Format(opts) =>
